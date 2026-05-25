@@ -1,4 +1,4 @@
-const CACHE = 'bus-timer-v1';
+const CACHE = 'bus-timer-v2';
 const ASSETS = [
   './',
   './index.html',

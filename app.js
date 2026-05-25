@@ -1,8 +1,8 @@
 (() => {
+  const DEFAULT_DIR = 'home_to_station'; // 春日神社→荻窪駅 を起動時のデフォルトに
   const STATE = {
     timetable: null,
     currentDir: null, // "home_to_station" | "station_to_home"
-    manualOverride: false,
     tickHandle: null,
   };
 
@@ -54,12 +54,6 @@
     return h * 60 + m;
   }
 
-  // 朝5:00〜13:00は自宅→駅、それ以外は駅→自宅
-  function autoDirection(date) {
-    const hour = date.getHours();
-    return (hour >= 5 && hour < 13) ? 'home_to_station' : 'station_to_home';
-  }
-
   // 当日と翌日（深夜の繰越用）の時刻表から、現在以降の上位N本を取り出す
   function getUpcoming(now, dir, n = 3) {
     const today = new Date(now);
@@ -99,9 +93,8 @@
     return Math.max(0, Math.ceil(diffMs / 60000));
   }
 
-  function setDirection(dir, manual) {
+  function setDirection(dir) {
     STATE.currentDir = dir;
-    if (manual) STATE.manualOverride = true;
     document.querySelectorAll('.dir-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.dir === dir);
     });
@@ -113,15 +106,6 @@
     $('now').textContent = formatHM(now);
     const dt = getDayType(now);
     $('dayType').textContent = dayTypeLabel(dt);
-
-    // 方向の自動判定（手動切替されていなければ）
-    if (!STATE.manualOverride) {
-      const auto = autoDirection(now);
-      if (auto !== STATE.currentDir) {
-        setDirection(auto, false);
-        return; // setDirection内でrenderが呼ばれる
-      }
-    }
 
     const dir = STATE.currentDir;
     const upcoming = getUpcoming(now, dir, 3);
@@ -168,14 +152,13 @@
 
   // 方向ボタン
   document.querySelectorAll('.dir-btn').forEach(btn => {
-    btn.addEventListener('click', () => setDirection(btn.dataset.dir, true));
+    btn.addEventListener('click', () => setDirection(btn.dataset.dir));
   });
 
   // 再読み込み
   $('reloadBtn').addEventListener('click', async () => {
-    STATE.manualOverride = false;
     await loadTimetable();
-    render();
+    setDirection(DEFAULT_DIR);
   });
 
   // PWA service worker 登録
@@ -187,8 +170,7 @@
   (async () => {
     try {
       await loadTimetable();
-      setDirection(autoDirection(new Date()), false);
-      render();
+      setDirection(DEFAULT_DIR);
       startTicker();
     } catch (e) {
       $('time1').textContent = 'データ読込失敗';
